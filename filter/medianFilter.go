@@ -33,6 +33,10 @@ func makeImmutableMatrix(matrix [][]uint8) func(y, x int) uint8 {
 	}
 }
 
+func worker(startY, endY, startX, endX int, data func(y, x int) uint8, out chan<- [][]uint8) {
+	out <- medianFilter(startY, endY, startX, endX, data)
+}
+
 // medianFilter applies the filter between the given x and y bounds on the given closure.
 // medianFilter returns the section where the filter was applied as a 2D slice.
 func medianFilter(startY, endY, startX, endX int, data func(y, x int) uint8) [][]uint8 {
@@ -114,11 +118,19 @@ func filter(filepathIn, filepathOut string, threads int) {
 
 	immutableData := makeImmutableMatrix(getPixelData(img))
 	var newPixelData [][]uint8
-	
+
+	workerSlice := make([]chan [][]uint8, threads)
 	if threads == 1 {
 		newPixelData = medianFilter(0, height, 0, width, immutableData)
 	} else {
-		panic("TODO Implement me")
+		for i := 0; i < threads; i++ {
+			workerSlice[i] = make(chan [][]uint8)
+			go worker((height/threads)*i, (height/threads)*(i+1),
+				0, width, immutableData, workerSlice[i])
+		}
+		for i := 0; i < threads; i++ {
+			newPixelData = append(newPixelData, <-workerSlice[i]...)
+		}
 	}
 
 	imout := image.NewGray(image.Rect(0, 0, width, height))
