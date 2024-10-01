@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -41,7 +42,9 @@ func BenchmarkParallel(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				unsorted := random(size)
 				b.StartTimer()
-				parallelMergeSort(unsorted)
+				var wg sync.WaitGroup
+				wg.Add(1)
+				parallelMergeSort(unsorted, &wg)
 				b.StopTimer()
 			}
 		})
